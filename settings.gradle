@@ -1,0 +1,2 @@
+rootProject.name='Illuminated Feedback App 2'
+include ':app'
