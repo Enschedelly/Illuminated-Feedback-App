@@ -8,6 +8,7 @@ import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -24,6 +25,7 @@ import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -40,12 +42,13 @@ public class MainActivity extends AppCompatActivity {
     private Size imageDimension;
     private static final int REQUEST_CAMERA_PERMISSION = 1;
 
+    private View feedbackView;
+
     // Thread handler member variables
     private Handler mBackgroundHandler;
     private HandlerThread mBackgroundThread;
 
     //Heart rate detector member variables
-    public static int hrtratebpm;
     private int mCurrentRollingAverage;
     private int mLastRollingAverage;
     private int mLastLastRollingAverage;
@@ -71,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-            Log.d(TAG, "onSurfaceTextureUpdated");
+//            Log.d(TAG, "onSurfaceTextureUpdated");
             Bitmap bmp = textureView.getBitmap();
             int width = bmp.getWidth();
             int height = bmp.getHeight();
@@ -102,6 +105,11 @@ public class MainActivity extends AppCompatActivity {
                     mNumBeats++;
                     if (mNumBeats == 15) {
                         calcBPM();
+                        mNumBeats = 0;
+                        numCaptures = 0;
+                        mLastRollingAverage = 0;
+                        mLastLastRollingAverage = 0;
+                        return;
                     }
                 }
             }
@@ -145,6 +153,7 @@ public class MainActivity extends AppCompatActivity {
         textureView.setSurfaceTextureListener(textureListener);
         mTimeArray = new long[15];
         tv = findViewById(R.id.neechewalatext);
+        feedbackView = findViewById(R.id.feedback);
     }
 
     // onResume
@@ -173,10 +182,34 @@ public class MainActivity extends AppCompatActivity {
         }
         Arrays.sort(timedist);
         med = (int) timedist[timedist.length/2];
-        hrtratebpm= 60000/med;
-        tv.setText(hrtratebpm + "");
+        int bpm = 60000/med;
+//        tv.setText(bpm + "");
+        setIlluminatedFeedback(bpm);
+
+        Log.d("BPM", "" + bpm);
         //TODO: add to database
 //        addTodb();
+    }
+
+    private void setIlluminatedFeedback(int bpm) {
+        int color;
+        if (bpm < 60) {
+            // Set color to light blue
+            color = Color.CYAN;
+        } else if (bpm < 65) {
+            // Set color to blue
+            color = Color.BLUE;
+        } else if (bpm < 75) {
+            // Set color to pink
+            color = Color.MAGENTA;
+        } else if (bpm < 80) {
+            // Set color to red
+            color = Color.RED;
+        } else {
+            // Set color to yellow
+            color = Color.YELLOW;
+        }
+        feedbackView.setBackgroundColor(color);
     }
 
     protected void createCameraPreview() {
