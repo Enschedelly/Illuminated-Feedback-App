@@ -18,9 +18,11 @@ import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.provider.Settings;
 import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
@@ -29,11 +31,23 @@ import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
+    private static final String BACKEND_URL = "https://api.roelink.eu/illuminated-feedback";
+
+    private String password;
+
     private TextureView textureView;
     private String cameraId;
     protected CameraDevice cameraDevice;
@@ -154,6 +168,7 @@ public class MainActivity extends AppCompatActivity {
         mTimeArray = new long[15];
         tv = findViewById(R.id.neechewalatext);
         feedbackView = findViewById(R.id.feedback);
+        password = getIntent().getStringExtra("password");
     }
 
     // onResume
@@ -187,8 +202,48 @@ public class MainActivity extends AppCompatActivity {
         setIlluminatedFeedback(bpm);
 
         Log.d("BPM", "" + bpm);
-        //TODO: add to database
-//        addTodb();
+        (new SendToBackendTask(password, bpm)).execute(BACKEND_URL);
+    }
+
+    private class SendToBackendTask extends AsyncTask<String, Integer, Boolean> {
+
+        private String password;
+        private int bpm;
+
+        public SendToBackendTask(String password, int bpm) {
+            this.password = password;
+            this.bpm = bpm;
+        }
+
+        @Override
+        protected Boolean doInBackground(String... urls) {
+            try {
+                URL url = new URL(urls[0]);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
+                conn.setRequestProperty("Accept","application/json");
+                conn.setRequestProperty("X-Authorization", password);
+                conn.setDoOutput(true);
+
+                JSONObject json = new JSONObject();
+                json.put("identifier", Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID));
+                json.put("heart_rate", bpm);
+                json.put("timestamp", System.currentTimeMillis() / 1000L);
+
+                DataOutputStream os = new DataOutputStream(conn.getOutputStream());
+                os.writeBytes(json.toString());
+                os.flush();
+                os.close();
+
+                boolean success = conn.getResponseCode() == 201;
+                conn.disconnect();
+                return success;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
     }
 
     private void setIlluminatedFeedback(int bpm) {
