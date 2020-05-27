@@ -6,6 +6,7 @@ import androidx.core.app.ActivityCompat;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -47,6 +48,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String BACKEND_URL = "https://api.roelink.eu/illuminated-feedback";
 
     private String password;
+    private JSONObject session;
+    private IlluminatedFeedbackDisplayer feedbackDisplayer;
 
     private TextureView textureView;
     private String cameraId;
@@ -169,6 +172,32 @@ public class MainActivity extends AppCompatActivity {
         tv = findViewById(R.id.neechewalatext);
         feedbackView = findViewById(R.id.feedback);
         password = getIntent().getStringExtra("password");
+        try {
+            session = new JSONObject(getIntent().getStringExtra("session"));
+            String displayType = session.getJSONObject("display_type").getString("name");
+            switch (displayType) {
+                case "True":
+                    feedbackDisplayer = new TrueFeedbackDisplayer(feedbackView);
+                    break;
+                case "Blank":
+                    feedbackDisplayer = new BlankFeedbackDisplayer(feedbackView);
+                    break;
+                case "Group":
+                    feedbackDisplayer = new GroupFeedbackDisplayer(feedbackView);
+                    break;
+                case "Random":
+                    feedbackDisplayer = new RandomFeedbackDisplayer(feedbackView);
+                    break;
+                default:
+                    Intent intent = new Intent(getBaseContext(), LoginActivity.class);
+                    startActivity(intent);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Intent intent = new Intent(getBaseContext(), LoginActivity.class);
+            startActivity(intent);
+        }
+
     }
 
     // onResume
@@ -199,7 +228,7 @@ public class MainActivity extends AppCompatActivity {
         med = (int) timedist[timedist.length/2];
         int bpm = 60000/med;
 //        tv.setText(bpm + "");
-        setIlluminatedFeedback(bpm);
+        feedbackDisplayer.display(bpm);
 
         Log.d("BPM", "" + bpm);
         (new SendToBackendTask(password, bpm)).execute(BACKEND_URL);
@@ -244,27 +273,6 @@ public class MainActivity extends AppCompatActivity {
                 return false;
             }
         }
-    }
-
-    private void setIlluminatedFeedback(int bpm) {
-        int color;
-        if (bpm < 58) {
-            // Set color to light blue
-            color = Color.parseColor("#a6dbe3");
-        } else if (bpm < 68) {
-            // Set color to blue
-            color = Color.parseColor("#71abdb");
-        } else if (bpm < 78) {
-            // Set color to pink
-            color = Color.parseColor("#d190bf");
-        } else if (bpm < 88) {
-            // Set color to red
-            color = Color.parseColor("#d190bf");
-        } else {
-            // Set color to yellow
-            color = Color.parseColor("#fed181");
-        }
-        feedbackView.setBackgroundColor(color);
     }
 
     protected void createCameraPreview() {

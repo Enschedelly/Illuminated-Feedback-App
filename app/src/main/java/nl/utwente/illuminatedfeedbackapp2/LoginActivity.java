@@ -8,13 +8,19 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
 
+import org.json.JSONObject;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class LoginActivity extends AppCompatActivity {
 
-    private static final String LOGIN_URL = "https://api.roelink.eu/illuminated-feedback/has_access";
+    private static final String LOGIN_URL = "https://api.roelink.eu/illuminated-feedback/session";
 
     private TextView passwordView;
     private TextView errorView;
@@ -40,7 +46,7 @@ public class LoginActivity extends AppCompatActivity {
         (new LoginTask(password, errorView)).execute(LOGIN_URL);
     }
 
-    private class LoginTask extends AsyncTask<String, Integer, Boolean> {
+    private class LoginTask extends AsyncTask<String, Integer, String> {
 
         private String password;
         private TextView errorView;
@@ -51,31 +57,36 @@ public class LoginActivity extends AppCompatActivity {
         }
 
         @Override
-        protected Boolean doInBackground(String... urls) {
+        protected String doInBackground(String... urls) {
             try {
                 URL url = new URL(urls[0]);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
+                conn.setRequestMethod("GET");
                 conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
                 conn.setRequestProperty("Accept","application/json");
                 conn.setRequestProperty("X-Authorization", password);
 
-                DataOutputStream os = new DataOutputStream(conn.getOutputStream());
-                os.flush();
-                os.close();
+                InputStream in = new BufferedInputStream(conn.getInputStream());
+                BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+
+                StringBuilder result = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    result.append(line);
+                }
 
                 boolean success = conn.getResponseCode() == 200;
                 conn.disconnect();
-                return success;
+                return success ? result.toString() : null;
             } catch (Exception e) {
                 e.printStackTrace();
-                return false;
+                return null;
             }
         }
 
         @Override
-        protected void onPostExecute(Boolean result) {
-            if (!result) {
+        protected void onPostExecute(String result) {
+            if (result == null) {
                 // Wrong password
                 this.errorView.setVisibility(View.VISIBLE);
                 return;
@@ -84,6 +95,7 @@ public class LoginActivity extends AppCompatActivity {
             // Good to go
             Intent intent = new Intent(getBaseContext(), MainActivity.class);
             intent.putExtra("password", password);
+            intent.putExtra("session", result);
             startActivity(intent);
         }
     }
