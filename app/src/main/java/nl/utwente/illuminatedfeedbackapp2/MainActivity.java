@@ -248,21 +248,21 @@ public class MainActivity extends AppCompatActivity {
 
     private void setIlluminatedFeedback(int bpm) {
         int color;
-        if (bpm < 60) {
+        if (bpm < 58) {
             // Set color to light blue
-            color = Color.CYAN;
-        } else if (bpm < 65) {
+            color = Color.parseColor("#a6dbe3");
+        } else if (bpm < 68) {
             // Set color to blue
-            color = Color.BLUE;
-        } else if (bpm < 75) {
+            color = Color.parseColor("#71abdb");
+        } else if (bpm < 78) {
             // Set color to pink
-            color = Color.MAGENTA;
-        } else if (bpm < 80) {
+            color = Color.parseColor("#d190bf");
+        } else if (bpm < 88) {
             // Set color to red
-            color = Color.RED;
+            color = Color.parseColor("#d190bf");
         } else {
             // Set color to yellow
-            color = Color.YELLOW;
+            color = Color.parseColor("#fed181");
         }
         feedbackView.setBackgroundColor(color);
     }
