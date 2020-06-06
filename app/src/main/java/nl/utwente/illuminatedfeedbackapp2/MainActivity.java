@@ -35,8 +35,12 @@ import android.widget.Toast;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -46,10 +50,13 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     private static final String BACKEND_URL = "https://api.roelink.eu/illuminated-feedback";
+    private static final String GROUP_HEART_RATE_URL = BACKEND_URL + "/session/group-heart-rate";
+    private static final int GROUP_FEEDBACK_DELAY = 10000;
 
     private String password;
     private JSONObject session;
     private IlluminatedFeedbackDisplayer feedbackDisplayer;
+    private Handler handler;
 
     private TextureView textureView;
     private String cameraId;
@@ -184,9 +191,14 @@ public class MainActivity extends AppCompatActivity {
                     break;
                 case "Group":
                     feedbackDisplayer = new GroupFeedbackDisplayer(feedbackView);
-                    break;
-                case "Random":
-                    feedbackDisplayer = new RandomFeedbackDisplayer(feedbackView);
+                    handler = new Handler();
+                    handler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            Log.d(TAG, "Fetching group heart rate...");
+                            (new GetGroupHeartRate()).execute(GROUP_HEART_RATE_URL);
+                        }
+                    }, GROUP_FEEDBACK_DELAY);
                     break;
                 default:
                     Intent intent = new Intent(getBaseContext(), LoginActivity.class);
@@ -228,19 +240,19 @@ public class MainActivity extends AppCompatActivity {
         med = (int) timedist[timedist.length/2];
         int bpm = 60000/med;
 //        tv.setText(bpm + "");
-        feedbackDisplayer.display(bpm);
+        if (!(feedbackDisplayer instanceof GroupFeedbackDisplayer)) {
+            feedbackDisplayer.display(bpm);
+        }
 
         Log.d("BPM", "" + bpm);
-        (new SendToBackendTask(password, bpm)).execute(BACKEND_URL);
+        (new SendToBackendTask(bpm)).execute(BACKEND_URL);
     }
 
     private class SendToBackendTask extends AsyncTask<String, Integer, Boolean> {
 
-        private String password;
         private int bpm;
 
-        public SendToBackendTask(String password, int bpm) {
-            this.password = password;
+        public SendToBackendTask(int bpm) {
             this.bpm = bpm;
         }
 
@@ -272,6 +284,51 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
                 return false;
             }
+        }
+    }
+
+    private class GetGroupHeartRate extends AsyncTask<String, Integer, Integer> {
+
+        @Override
+        protected Integer doInBackground(String... urls) {
+            try {
+                URL url = new URL(urls[0]);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
+                conn.setRequestProperty("Accept","application/json");
+                conn.setRequestProperty("X-Authorization", password);
+
+                InputStream in = new BufferedInputStream(conn.getInputStream());
+                BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+
+                StringBuilder result = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    result.append(line);
+                }
+
+                boolean success = conn.getResponseCode() == 200;
+                conn.disconnect();
+                return success ? (int) (new JSONObject(result.toString())).getDouble("average_heart_beat") : null;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(Integer result) {
+            if (result != null) {
+                feedbackDisplayer.display(result);
+            }
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    Log.d(TAG, "Fetching group heart rate...");
+                    (new GetGroupHeartRate()).execute(GROUP_HEART_RATE_URL);
+                }
+            }, GROUP_FEEDBACK_DELAY);
         }
     }
 

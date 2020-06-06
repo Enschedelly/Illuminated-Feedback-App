@@ -33,6 +33,6 @@
         android:id="@+id/feedback"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="#ffe0a6" />
+        android:background="#99dade" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
