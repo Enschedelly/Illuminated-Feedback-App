@@ -23,7 +23,7 @@ public class TrueFeedbackDisplayer extends IlluminatedFeedbackDisplayer {
             color = Color.parseColor("#d190bf");
         } else if (bpm < 93) {
             // Set color to red
-            color = Color.parseColor("#d190bf");
+            color = Color.parseColor("#ee4558");
         } else {
             // Set color to yellow
             color = Color.parseColor("#fed181");
